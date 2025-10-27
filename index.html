@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="免费在线视频解析工具，支持爱奇艺、腾讯、优酷、芒果TV等主流视频平台VIP视频解析">
+    <meta name="keywords" content="视频解析,VIP视频解析,爱奇艺解析,腾讯视频解析,优酷解析">
+    <title>视频解析 - 免费VIP视频在线解析</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+</head>
+<body>
+    <!-- 背景装饰 -->
+    <div class="bg-decoration"></div>
+    
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1 class="title">🎬 视频解析</h1>
+            <p class="subtitle">支持爱奇艺、腾讯、优酷、芒果TV等主流平台VIP视频解析</p>
+        </header>
+
+        <!-- 解析表单 -->
+        <div class="parse-form">
+            <div class="form-group">
+                <label for="videoUrl">视频地址</label>
+                <input 
+                    type="text" 
+                    id="videoUrl" 
+                    class="input-url" 
+                    placeholder="请粘贴视频网址（支持爱奇艺、腾讯、优酷、芒果TV等）"
+                    autocomplete="off"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="parseApi">解析线路</label>
+                <select id="parseApi" class="select-api">
+                    <option value="http://quanminjiexi.com/jx/?url=">线路1</option>
+                    <option value="https://jx.playerjy.com/?url=">线路2(可解析bilibili会员视频)</option>
+                    <option value="https://jx.aidouer.net/?url=">线路3</option>
+                    <option value="https://jx.jsonplayer.com/player/?url=">线路4</option>
+                    <option value="https://okjx.cc/?url=">线路5</option>
+                    <option value="https://jx.aidouer.net/?url=">线路6</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button id="parseBtn" class="btn-parse">
+                    <span class="btn-text">开始解析</span>
+                    <span class="btn-icon">▶</span>
+                </button>
+                <button id="toggleHistoryBtn" class="btn-history" title="查看观看历史">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>历史</span>
+                </button>
+            </div>
+
+            <div class="quick-links">
+                <span class="quick-links-title">快速访问：</span>
+                <a href="https://www.iqiyi.com" target="_blank" class="platform-tag platform-tag-iqiyi">
+                    <span class="platform-tag-icon">📺</span>
+                    <span>爱奇艺</span>
+                </a>
+                <a href="https://v.qq.com" target="_blank" class="platform-tag platform-tag-tencent">
+                    <span class="platform-tag-icon">🎬</span>
+                    <span>腾讯视频</span>
+                </a>
+                <a href="https://www.youku.com" target="_blank" class="platform-tag platform-tag-youku">
+                    <span class="platform-tag-icon">▶️</span>
+                    <span>优酷</span>
+                </a>
+                <a href="https://www.mgtv.com" target="_blank" class="platform-tag platform-tag-mgtv">
+                    <span class="platform-tag-icon">🍹</span>
+                    <span>芒果TV</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- 视频播放器容器 -->
+        <div id="playerContainer" class="player-container hidden">
+            <!-- 播放器工具栏 -->
+            <div class="player-toolbar">
+                <div class="player-info">
+                    <span id="videoTitle" class="video-title">视频播放</span>
+                    <span id="videoEpisode" class="video-episode"></span>
+                </div>
+                <div class="player-actions">
+                    <button id="refreshBtn" class="toolbar-btn" title="刷新视频">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"></polyline>
+                            <polyline points="1 20 1 14 7 14"></polyline>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                        </svg>
+                        <span>刷新</span>
+                    </button>
+                    <button id="closeBtn" class="toolbar-btn" title="关闭播放器">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        <span>关闭</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 加载动画 -->
+            <div id="loadingOverlay" class="loading-overlay">
+                <div class="loading-spinner">
+                    <div class="spinner-circle"></div>
+                    <div class="spinner-circle"></div>
+                    <div class="spinner-circle"></div>
+                </div>
+                <p class="loading-text">正在加载视频...</p>
+            </div>
+            
+            <!-- 视频播放区域 -->
+            <div class="player-wrapper">
+                <iframe 
+                    id="videoPlayer" 
+                    frameborder="0" 
+                    allowfullscreen 
+                    allow="autoplay; fullscreen; picture-in-picture"
+                ></iframe>
+            </div>
+        </div>
+
+        <!-- 观看历史 -->
+        <div id="historyContainer" class="history-container hidden">
+            <div class="history-header">
+                <h3>📺 观看历史</h3>
+                <button id="clearHistoryBtn" class="clear-btn">清空历史</button>
+            </div>
+            <div id="historyList" class="history-list"></div>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="instructions">
+            <h3>📖 使用说明</h3>
+            <div class="instructions-grid">
+                <div class="instruction-item">
+                    <div class="step-number">1</div>
+                    <p>复制想看的视频网址</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="step-number">2</div>
+                    <p>粘贴到上方输入框</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="step-number">3</div>
+                    <p>选择解析线路</p>
+                </div>
+                <div class="instruction-item">
+                    <div class="step-number">4</div>
+                    <p>点击开始解析观看</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 支持平台 -->
+        <div class="platforms">
+            <h3>🎯 支持平台</h3>
+            <div class="platform-tags">
+                <span class="platform-tag">爱奇艺</span>
+                <span class="platform-tag">腾讯视频</span>
+                <span class="platform-tag">优酷</span>
+                <span class="platform-tag">芒果TV</span>
+                <span class="platform-tag">搜狐视频</span>
+                <span class="platform-tag">乐视</span>
+                <span class="platform-tag">PPTV</span>
+                <span class="platform-tag">1905电影网</span>
+                <span class="platform-tag">西瓜视频</span>
+                <span class="platform-tag">B站</span>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <footer class="footer">
+            <p class="footer-text">
+                本站仅供学习交流使用，请勿用于商业用途
+            </p>
+            <p class="footer-copyright">
+                © 2024 视频解析工具
+            </p>
+        </footer>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
+
