@@ -15,6 +15,10 @@
     const historyContainer = document.getElementById('historyContainer');
     const historyList = document.getElementById('historyList');
     const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const toggleStatsBtn = document.getElementById('toggleStatsBtn');
+    const statsContainer = document.getElementById('statsContainer');
+    const statsList = document.getElementById('statsList');
+    const clearStatsBtn = document.getElementById('clearStatsBtn');
     const videoTitle = document.getElementById('videoTitle');
     const videoEpisode = document.getElementById('videoEpisode');
 
@@ -23,8 +27,32 @@
     let currentVideoUrl = '';
     let currentParseApi = '';
 
+    // 初始化解析线路
+    function initializeParseApis() {
+        // 清空现有选项
+        parseApiSelect.innerHTML = '';
+        
+        // 添加自动选择线路选项
+        const smartOption = document.createElement('option');
+        smartOption.value = 'smart';
+        smartOption.textContent = '🚀 自动选择线路';
+        smartOption.selected = true;
+        parseApiSelect.appendChild(smartOption);
+        
+        // 从 PARSE_APIS 数组添加选项
+        PARSE_APIS.forEach(api => {
+            const option = document.createElement('option');
+            option.value = api.url;
+            option.textContent = api.name;
+            parseApiSelect.appendChild(option);
+        });
+    }
+
     // 初始化
     function init() {
+        // 初始化解析线路
+        initializeParseApis();
+
         // 绑定事件
         parseBtn.addEventListener('click', handleParse);
         videoUrlInput.addEventListener('keypress', handleKeyPress);
@@ -32,6 +60,8 @@
         closeBtn.addEventListener('click', closePlayer);
         toggleHistoryBtn.addEventListener('click', toggleHistory);
         clearHistoryBtn.addEventListener('click', clearHistory);
+        toggleStatsBtn.addEventListener('click', toggleStats);
+        clearStatsBtn.addEventListener('click', clearStats);
 
         // 加载历史记录
         loadHistoryFromStorage();
@@ -84,7 +114,23 @@
     }
 
     // 从URL提取视频标题和集数
-    function extractVideoInfo(url) {
+    async function extractVideoInfo(url) {
+        try {
+            // 使用新的视频信息提取器
+            if (window.videoInfoExtractor) {
+                const info = await window.videoInfoExtractor.extractVideoInfo(url);
+                return {
+                    title: info.title || '视频播放',
+                    episode: info.episode || '',
+                    duration: info.duration,
+                    platform: info.platform
+                };
+            }
+        } catch (error) {
+            console.error('提取视频信息失败:', error);
+        }
+
+        // 回退到原来的简单提取方法
         let title = '视频播放';
         let episode = '';
 
@@ -130,11 +176,11 @@
             // 解析失败，使用默认值
         }
 
-        return { title, episode };
+        return { title, episode, duration: null, platform: 'unknown' };
     }
 
     // 处理解析
-    function handleParse() {
+    async function handleParse() {
         const videoUrl = videoUrlInput.value.trim();
         const parseApi = parseApiSelect.value;
 
@@ -149,18 +195,10 @@
             return;
         }
 
-        // 显示提示信息
-        if (!isSupportedPlatform(videoUrl)) {
-            showMessage('当前线路若无法播放，请尝试切换其他线路', 'warning');
-        } else {
-            showMessage('若当前线路无法播放，请尝试切换其他线路', 'info');
-        }
-
         // 提取视频信息
-        const videoInfo = extractVideoInfo(videoUrl);
+        const videoInfo = await extractVideoInfo(videoUrl);
         currentVideoInfo = videoInfo;
         currentVideoUrl = videoUrl;
-        currentParseApi = parseApi;
 
         // 保存到历史记录
         saveToHistory(videoUrl, videoInfo);
@@ -171,20 +209,87 @@
         // 显示加载状态
         showLoading();
 
-        // 延迟显示播放器，给用户更好的反馈
-        setTimeout(() => {
-            loadVideo(parseApi + encodeURIComponent(videoUrl));
-        }, 300);
+        try {
+            if (parseApi === 'smart') {
+                // 使用智能路由
+                await handleSmartParse(videoUrl);
+            } else {
+                // 使用指定线路
+                currentParseApi = parseApi;
+                setTimeout(() => {
+                    loadVideo(parseApi + encodeURIComponent(videoUrl));
+                }, 300);
+            }
+        } catch (error) {
+            loadingOverlay.classList.add('hidden');
+            showMessage('解析失败，请尝试手动选择线路', 'error');
+            console.error('解析失败:', error);
+        }
+    }
+
+    // 智能解析处理
+    async function handleSmartParse(videoUrl) {
+        try {
+            showMessage('🔍 正在智能检测最佳线路...', 'info');
+            
+            // 使用智能路由管理器找到最佳线路
+            const result = await window.smartRouteManager.findBestRoute(videoUrl);
+            
+            if (result.success) {
+                currentParseApi = result.api.url;
+                showMessage(`✅ 已选择最佳线路：${result.api.name}（响应时间：${result.responseTime}ms）`, 'success');
+                
+                // 延迟一点时间让用户看到消息
+                setTimeout(() => {
+                    loadVideo(result.url);
+                }, 800);
+            } else {
+                // 即使测试失败，也尝试使用该线路
+                currentParseApi = result.api.url;
+                showMessage(`⚠️ 使用线路：${result.api.name}（其他线路可能更慢）`, 'warning');
+                
+                setTimeout(() => {
+                    loadVideo(result.url);
+                }, 800);
+            }
+        } catch (error) {
+            // 智能路由失败，回退到第一个线路
+            const fallbackApi = PARSE_APIS[0];
+            currentParseApi = fallbackApi.url;
+            showMessage('智能路由检测失败，使用默认线路', 'warning');
+            
+            setTimeout(() => {
+                loadVideo(fallbackApi.url + encodeURIComponent(videoUrl));
+            }, 300);
+        }
     }
 
     // 更新播放器标题
     function updatePlayerTitle(videoInfo) {
         videoTitle.textContent = videoInfo.title;
+        
         if (videoInfo.episode) {
             videoEpisode.textContent = videoInfo.episode;
             videoEpisode.classList.remove('hidden');
         } else {
             videoEpisode.classList.add('hidden');
+        }
+
+        // 显示时长信息（如果有）
+        if (videoInfo.duration) {
+            let durationDisplay = document.getElementById('videoDuration');
+            if (!durationDisplay) {
+                durationDisplay = document.createElement('div');
+                durationDisplay.id = 'videoDuration';
+                durationDisplay.className = 'video-duration';
+                
+                // 插入到播放器信息区域
+                const playerInfo = document.querySelector('.player-info');
+                if (playerInfo) {
+                    playerInfo.appendChild(durationDisplay);
+                }
+            }
+            durationDisplay.textContent = `时长: ${videoInfo.duration}`;
         }
     }
 
@@ -237,6 +342,9 @@
                 setTimeout(() => {
                     loadingOverlay.classList.add('hidden');
                     showMessage('解析成功，开始播放', 'success');
+                    
+                    // 尝试获取视频信息
+                    tryGetVideoInfo();
                 }, 800);
             };
 
@@ -249,6 +357,102 @@
             loadingOverlay.classList.add('hidden');
             showMessage('解析失败，请尝试切换其他线路', 'error');
             console.error('加载视频失败:', error);
+        }
+    }
+
+    // 尝试获取视频信息（时长等）
+    function tryGetVideoInfo() {
+        try {
+            // 尝试从iframe中获取视频信息
+            const iframe = videoPlayer;
+            
+            // 设置一个定时器来检查视频信息
+            let attempts = 0;
+            const maxAttempts = 10;
+            
+            const checkVideoInfo = () => {
+                attempts++;
+                
+                try {
+                    // 尝试访问iframe内容（可能会因为跨域限制失败）
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                    const videoElement = iframeDoc.querySelector('video');
+                    
+                    if (videoElement && videoElement.duration && !isNaN(videoElement.duration)) {
+                        const duration = formatDuration(videoElement.duration);
+                        updateVideoInfo({
+                            duration: duration,
+                            currentTime: formatDuration(videoElement.currentTime || 0)
+                        });
+                        
+                        // 监听时间更新
+                        videoElement.addEventListener('timeupdate', () => {
+                            updateVideoInfo({
+                                duration: formatDuration(videoElement.duration),
+                                currentTime: formatDuration(videoElement.currentTime)
+                            });
+                        });
+                        
+                        return; // 成功获取，停止尝试
+                    }
+                } catch (e) {
+                    // 跨域限制，无法访问iframe内容
+                    console.log('无法访问iframe内容（跨域限制）');
+                }
+                
+                // 如果还没有达到最大尝试次数，继续尝试
+                if (attempts < maxAttempts) {
+                    setTimeout(checkVideoInfo, 1000);
+                } else {
+                    console.log('无法获取视频时长信息');
+                }
+            };
+            
+            // 开始检查
+            setTimeout(checkVideoInfo, 2000);
+            
+        } catch (error) {
+            console.error('获取视频信息失败:', error);
+        }
+    }
+
+    // 格式化时长
+    function formatDuration(seconds) {
+        if (!seconds || isNaN(seconds)) return '00:00';
+        
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        
+        if (hours > 0) {
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        } else {
+            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+    }
+
+    // 更新视频信息显示
+    function updateVideoInfo(info) {
+        if (info.duration) {
+            // 在播放器工具栏中显示时长信息
+            let durationDisplay = document.getElementById('videoDuration');
+            if (!durationDisplay) {
+                durationDisplay = document.createElement('div');
+                durationDisplay.id = 'videoDuration';
+                durationDisplay.className = 'video-duration';
+                
+                // 插入到播放器信息区域
+                const playerInfo = document.querySelector('.player-info');
+                if (playerInfo) {
+                    playerInfo.appendChild(durationDisplay);
+                }
+            }
+            
+            if (info.currentTime && info.duration !== '00:00') {
+                durationDisplay.textContent = `${info.currentTime} / ${info.duration}`;
+            } else if (info.duration !== '00:00') {
+                durationDisplay.textContent = `时长: ${info.duration}`;
+            }
         }
     }
 
@@ -394,6 +598,9 @@
 
     function toggleHistory() {
         historyContainer.classList.toggle('hidden');
+        // 隐藏统计容器
+        statsContainer.classList.add('hidden');
+        
         if (!historyContainer.classList.contains('hidden')) {
             // 滚动到历史记录
             setTimeout(() => {
@@ -402,6 +609,79 @@
                     block: 'nearest' 
                 });
             }, 100);
+        }
+    }
+
+    function toggleStats() {
+        statsContainer.classList.toggle('hidden');
+        // 隐藏历史容器
+        historyContainer.classList.add('hidden');
+        
+        if (!statsContainer.classList.contains('hidden')) {
+            renderStatsList();
+            // 滚动到统计信息
+            setTimeout(() => {
+                statsContainer.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'nearest' 
+                });
+            }, 100);
+        }
+    }
+
+    function renderStatsList() {
+        if (!window.smartRouteManager) {
+            statsList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">统计数据加载中...</p>';
+            return;
+        }
+
+        const stats = window.smartRouteManager.getRouteStatsInfo();
+        
+        if (stats.length === 0 || stats.every(s => s.totalTests === 0)) {
+            statsList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无统计数据<br><small>使用智能路由后会显示各线路的性能统计</small></p>';
+            return;
+        }
+
+        statsList.innerHTML = stats.map((stat, index) => {
+            const lastUsedText = stat.lastUsed ? formatDate(new Date(stat.lastUsed)) : '从未使用';
+            const successRateColor = stat.successRate >= 80 ? '#48bb78' : 
+                                   stat.successRate >= 50 ? '#ed8936' : '#f56565';
+            
+            return `
+                <div class="stats-item">
+                    <div class="stats-item-header">
+                        <div class="stats-item-name">${stat.name}</div>
+                        <div class="stats-item-rate" style="color: ${successRateColor}">
+                            ${stat.successRate}%
+                        </div>
+                    </div>
+                    <div class="stats-item-details">
+                        <div class="stats-detail">
+                            <span class="stats-label">响应时间:</span>
+                            <span class="stats-value">${stat.avgResponseTime}ms</span>
+                        </div>
+                        <div class="stats-detail">
+                            <span class="stats-label">测试次数:</span>
+                            <span class="stats-value">${stat.totalTests}</span>
+                        </div>
+                        <div class="stats-detail">
+                            <span class="stats-label">最后使用:</span>
+                            <span class="stats-value">${lastUsedText}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function clearStats() {
+        if (confirm('确定要清空所有线路统计数据吗？')) {
+            if (window.smartRouteManager) {
+                window.smartRouteManager.routeStats = {};
+                window.smartRouteManager.saveRouteStats();
+                renderStatsList();
+                showMessage('统计数据已清空', 'success');
+            }
         }
     }
 

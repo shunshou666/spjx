@@ -17,7 +17,7 @@
     <div class="container">
         <!-- 头部 -->
         <header class="header">
-            <h1 class="title">🎬 视频解析</h1>
+            <h1 class="title">视频解析</h1>
             <p class="subtitle">支持爱奇艺、腾讯、优酷、芒果TV等主流平台VIP视频解析</p>
         </header>
 
@@ -36,14 +36,7 @@
 
             <div class="form-group">
                 <label for="parseApi">解析线路</label>
-                <select id="parseApi" class="select-api">
-                    <option value="http://quanminjiexi.com/jx/?url=">线路1</option>
-                    <option value="https://jx.playerjy.com/?url=">线路2(可解析bilibili会员视频)</option>
-                    <option value="http://player.cmov.cn/?url=">线路3</option>
-                    <option value="https://jx.aidouer.net/?url=">线路4</option>
-                    <option value="https://okjx.cc/?url=">线路5</option>
-                    <option value="https://jx.aidouer.net/?url=">线路6</option>
-                </select>
+                <select id="parseApi" class="select-api"></select>
             </div>
 
             <div class="form-actions">
@@ -58,25 +51,60 @@
                     </svg>
                     <span>历史</span>
                 </button>
+                <button id="toggleStatsBtn" class="btn-stats" title="查看线路统计">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 3v18h18"></path>
+                        <path d="M7 12l4-4 4 4 6-6"></path>
+                    </svg>
+                    <span>统计</span>
+                </button>
             </div>
 
             <div class="quick-links">
                 <span class="quick-links-title">快速访问：</span>
-                <a href="https://www.iqiyi.com" target="_blank" class="platform-tag platform-tag-iqiyi">
-                    <span class="platform-tag-icon">📺</span>
+                <a href="https://www.iqiyi.com" target="_blank" class="platform-link" title="爱奇艺">
+                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="10" fill="#09b83e"/>
+                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="white"/>
+                    </svg>
                     <span>爱奇艺</span>
                 </a>
-                <a href="https://v.qq.com" target="_blank" class="platform-tag platform-tag-tencent">
-                    <span class="platform-tag-icon">🎬</span>
+                <a href="https://v.qq.com" target="_blank" class="platform-link" title="腾讯视频">
+                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="10" fill="#00a2e8"/>
+                        <path d="M9 10v4l6-2z" fill="white"/>
+                    </svg>
                     <span>腾讯视频</span>
                 </a>
-                <a href="https://www.youku.com" target="_blank" class="platform-tag platform-tag-youku">
-                    <span class="platform-tag-icon">▶️</span>
+                <a href="https://www.youku.com" target="_blank" class="platform-link" title="优酷">
+                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <rect width="24" height="24" rx="12" fill="#ff6700"/>
+                        <path d="M8 10l8 4-8 4z" fill="white"/>
+                    </svg>
                     <span>优酷</span>
                 </a>
-                <a href="https://www.mgtv.com" target="_blank" class="platform-tag platform-tag-mgtv">
-                    <span class="platform-tag-icon">🍹</span>
+                <a href="https://www.mgtv.com" target="_blank" class="platform-link" title="芒果TV">
+                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="10" fill="#ff9900"/>
+                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="white"/>
+                    </svg>
                     <span>芒果TV</span>
+                </a>
+                <a href="https://www.sohu.com" target="_blank" class="platform-link" title="搜狐视频">
+                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <circle cx="12" cy="12" r="10" fill="#ff0000"/>
+                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="white"/>
+                    </svg>
+                    <span>搜狐视频</span>
+                </a>
+                <a href="https://www.bilibili.com" target="_blank" class="platform-link" title="B站">
+                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
+                        <rect width="24" height="24" rx="12" fill="#fb7299"/>
+                        <rect x="6" y="8" width="12" height="8" rx="2" fill="white"/>
+                        <rect x="9" y="10" width="2" height="4" rx="1" fill="#fb7299"/>
+                        <rect x="13" y="10" width="2" height="4" rx="1" fill="#fb7299"/>
+                    </svg>
+                    <span>Bilibili</span>
                 </a>
             </div>
         </div>
@@ -138,6 +166,15 @@
             <div id="historyList" class="history-list"></div>
         </div>
 
+        <!-- 线路统计 -->
+        <div id="statsContainer" class="stats-container hidden">
+            <div class="stats-header">
+                <h3>📊 线路统计</h3>
+                <button id="clearStatsBtn" class="clear-btn">清空统计</button>
+            </div>
+            <div id="statsList" class="stats-list"></div>
+        </div>
+
         <!-- 使用说明 -->
         <div class="instructions">
             <h3>📖 使用说明</h3>
@@ -159,23 +196,33 @@
                     <p>点击开始解析观看</p>
                 </div>
             </div>
+            
+            <div class="feature-highlights">
+                <h4>🚀 新功能特性</h4>
+                <ul class="feature-list">
+                    <li><strong>智能路由：</strong>自动并发测试所有线路，选择最快的可用线路</li>
+                    <li><strong>视频信息：</strong>自动提取视频标题、集数等信息</li>
+                    <li><strong>性能统计：</strong>记录各线路成功率和响应时间，优化选择</li>
+                    <li><strong>观看历史：</strong>保存观看记录，支持添加备注</li>
+                </ul>
+            </div>
         </div>
 
-        <!-- 支持平台 -->
-        <div class="platforms">
-            <h3>🎯 支持平台</h3>
-            <div class="platform-tags">
-                <span class="platform-tag">爱奇艺</span>
-                <span class="platform-tag">腾讯视频</span>
-                <span class="platform-tag">优酷</span>
-                <span class="platform-tag">芒果TV</span>
-                <span class="platform-tag">搜狐视频</span>
-                <span class="platform-tag">乐视</span>
-                <span class="platform-tag">PPTV</span>
-                <span class="platform-tag">1905电影网</span>
-                <span class="platform-tag">西瓜视频</span>
-                <span class="platform-tag">B站</span>
-            </div>
+        <!-- API信息说明 -->
+        <div class="api-info">
+            <h3>🔧 接口数据格式说明</h3>
+            <p>
+                <strong>接口返回格式：</strong>这些视频解析接口返回的是包含视频播放器的HTML页面，而不是JSON数据。
+                页面中嵌入了 <code>&lt;video&gt;</code> 标签或其他播放器组件。
+            </p>
+            <p>
+                <strong>视频时长获取：</strong>由于跨域限制，无法直接从iframe中获取视频时长。
+                系统会尝试从原始视频URL中提取标题、集数等信息，并在可能的情况下显示时长。
+            </p>
+            <p>
+                <strong>智能检测：</strong>系统通过并发测试各线路的响应速度和可用性，
+                自动选择最佳线路，提升观看体验。
+            </p>
         </div>
 
         <!-- 页脚 -->
@@ -189,6 +236,8 @@
         </footer>
     </div>
 
+    <script src="js/apis.js"></script>
+    <script src="js/video-info.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
