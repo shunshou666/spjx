@@ -1,771 +1,965 @@
-// 视频解析主要功能
-(function() {
-    'use strict';
+﻿(function () {
+  'use strict';
 
-    // DOM 元素
-    const videoUrlInput = document.getElementById('videoUrl');
-    const parseApiSelect = document.getElementById('parseApi');
-    const parseBtn = document.getElementById('parseBtn');
-    const playerContainer = document.getElementById('playerContainer');
-    const videoPlayer = document.getElementById('videoPlayer');
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    const refreshBtn = document.getElementById('refreshBtn');
-    const closeBtn = document.getElementById('closeBtn');
-    const toggleHistoryBtn = document.getElementById('toggleHistoryBtn');
-    const historyContainer = document.getElementById('historyContainer');
-    const historyList = document.getElementById('historyList');
-    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
-    const toggleStatsBtn = document.getElementById('toggleStatsBtn');
-    const statsContainer = document.getElementById('statsContainer');
-    const statsList = document.getElementById('statsList');
-    const clearStatsBtn = document.getElementById('clearStatsBtn');
-    const videoTitle = document.getElementById('videoTitle');
-    const videoEpisode = document.getElementById('videoEpisode');
+  // ============================================================
+  //  DOM 引用
+  // ============================================================
+  const $ = (id) => document.getElementById(id);
+  const qs = (s, el) => (el || document).querySelector(s);
 
-    // 当前视频信息
-    let currentVideoInfo = null;
-    let currentVideoUrl = '';
-    let currentParseApi = '';
+  // Tab
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const panels = {
+    vip: $('panelVip'),
+    short: $('panelShort'),
+    bili: $('panelBili'),
+  };
 
-    // 初始化解析线路
-    function initializeParseApis() {
-        // 清空现有选项
-        parseApiSelect.innerHTML = '';
-        
-        // 添加自动选择线路选项
-        const smartOption = document.createElement('option');
-        smartOption.value = 'smart';
-        smartOption.textContent = '🚀 自动选择线路';
-        smartOption.selected = true;
-        parseApiSelect.appendChild(smartOption);
-        
-        // 从 PARSE_APIS 数组添加选项
-        PARSE_APIS.forEach(api => {
-            const option = document.createElement('option');
-            option.value = api.url;
-            option.textContent = api.name;
-            parseApiSelect.appendChild(option);
+  // VIP
+  const vipUrl = $('vipUrl');
+  const vipApi = $('vipApi');
+  const vipParseBtn = $('vipParseBtn');
+
+  // Short video
+  const shortUrl = $('shortUrl');
+  const shortApi = $('shortApi');
+  const shortParseBtn = $('shortParseBtn');
+
+  // Bili
+  const biliBv = $('biliBv');
+  const biliAv = $('biliAv');
+  const biliQuality = $('biliQuality');
+  const biliOtypeBtns = document.querySelectorAll('#biliOtype .btn-group-item');
+  const biliParseBtn = $('biliParseBtn');
+  const biliResult = $('biliResult');
+  const biliResultContent = $('biliResultContent');
+  const biliResultClose = $('biliResultClose');
+
+  // Player
+  const playerOverlay = $('playerContainer');
+  const videoPlayer = $('videoPlayer');
+  const loadingOverlay = $('loadingOverlay');
+  const playerTitle = $('playerTitle');
+  const playerEpisode = $('playerEpisode');
+  const playerRefresh = $('playerRefresh');
+  const playerClose = $('playerClose');
+  const playerSwitch = $('playerSwitch');
+
+  // History / Stats
+  const toggleHistoryBtn = $('toggleHistoryBtn');
+  const historyDrawer = $('historyDrawer');
+  const historyList = $('historyList');
+  const clearHistoryBtn = $('clearHistoryBtn');
+  const closeHistoryBtn = $('closeHistoryBtn');
+  const toggleStatsBtn = $('toggleStatsBtn');
+  const statsDrawer = $('statsDrawer');
+  const statsList = $('statsList');
+  const clearStatsBtn = $('clearStatsBtn');
+  const closeStatsBtn = $('closeStatsBtn');
+
+  // Instructions
+  const instructionsToggle = $('instructionsToggle');
+  const instructionsBody = $('instructionsBody');
+
+  // Message
+  const msgContainer = $('messageContainer');
+
+  // ============================================================
+  //  状态
+  // ============================================================
+  let currentTab = 'vip';
+  let currentVipUrl = '';
+  let currentVipApi = '';
+  let biliOtype = 'json';
+  let routeTestUI = null;
+  let switchContext = null; // { apis, excludeUrls: [], originalUrl }
+
+  // ============================================================
+  //  初始化
+  // ============================================================
+  function init() {
+    routeTestUI = new RouteTestUI();
+    populateSelect(vipApi, VIP_PARSE_APIS);
+    populateSelect(shortApi, SHORT_VIDEO_APIS);
+    populateQualitySelect();
+    renderQuickLinks();
+    renderShortPlatforms();
+
+    // Tab
+    tabBtns.forEach((btn) => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // VIP
+    vipParseBtn.addEventListener('click', () => handleVipParse());
+    vipUrl.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleVipParse(); });
+
+    // Short
+    shortParseBtn.addEventListener('click', () => handleShortParse());
+    shortUrl.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleShortParse(); });
+
+    // Bili
+    biliParseBtn.addEventListener('click', () => handleBiliParse());
+    biliBv.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleBiliParse(); });
+    biliAv.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleBiliParse(); });
+    biliOtypeBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        biliOtypeBtns.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        biliOtype = btn.dataset.value;
+      });
+    });
+    biliResultClose.addEventListener('click', () => biliResult.classList.add('hidden'));
+
+    // Player
+    playerRefresh.addEventListener('click', refreshVideo);
+    playerClose.addEventListener('click', closePlayer);
+    if (playerSwitch) playerSwitch.addEventListener('click', switchRoute);
+    videoPlayer.addEventListener('load', () => {
+      setTimeout(() => {
+      loadingOverlay.classList.add('hidden');
+      const sw = $('playerSwitch');
+      if (sw) sw.classList.remove('player-switch-alert');
+    }, 600);
+    });
+    videoPlayer.addEventListener('error', () => {
+      loadingOverlay.classList.add('hidden');
+      showMsg('当前线路解析失败，可点击「换线路」尝试其他接口', 'error');
+    });
+
+    // History / Stats
+    toggleHistoryBtn.addEventListener('click', () => toggleDrawer(historyDrawer, statsDrawer));
+    closeHistoryBtn.addEventListener('click', () => historyDrawer.classList.add('hidden'));
+    clearHistoryBtn.addEventListener('click', clearHistory);
+    toggleStatsBtn.addEventListener('click', () => toggleDrawer(statsDrawer, historyDrawer));
+    closeStatsBtn.addEventListener('click', () => statsDrawer.classList.add('hidden'));
+    clearStatsBtn.addEventListener('click', clearStats);
+
+    // Instructions
+    instructionsToggle.addEventListener('click', () => {
+      instructionsBody.classList.toggle('hidden');
+      instructionsToggle.classList.toggle('open');
+    });
+
+    // Load history
+    renderHistoryList();
+
+    // URL param auto-parse
+    const urlParams = new URLSearchParams(window.location.search);
+    const autoUrl = urlParams.get('url');
+    if (autoUrl) {
+      vipUrl.value = decodeURIComponent(autoUrl);
+      switchTab('vip');
+      handleVipParse();
+    }
+  }
+
+  // ============================================================
+  //  Tab 切换
+  // ============================================================
+  function switchTab(tab) {
+    currentTab = tab;
+    tabBtns.forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    Object.entries(panels).forEach(([k, el]) => el.classList.toggle('active', k === tab));
+  }
+
+  // ============================================================
+  //  下拉框填充
+  // ============================================================
+  function populateSelect(sel, apis) {
+    sel.innerHTML = '<option value="smart">\u{1F680} 自动选择线路</option>' +
+      apis.map((a) => `<option value="${a.url}">${a.name}</option>`).join('');
+  }
+
+  function populateQualitySelect() {
+    biliQuality.innerHTML = BILI_QUALITY_OPTIONS
+      .map((o) => `<option value="${o.value}">${o.label}</option>`).join('');
+  }
+
+  // ============================================================
+  //  快速链接
+  // ============================================================
+  function renderQuickLinks() {
+    const links = [
+      { name: '爱奇艺', url: 'https://www.iqiyi.com' },
+      { name: '腾讯视频', url: 'https://v.qq.com' },
+      { name: '优酷', url: 'https://www.youku.com' },
+      { name: '芒果TV', url: 'https://www.mgtv.com' },
+      { name: 'Bilibili', url: 'https://www.bilibili.com' },
+    ];
+    $('vipQuickLinks').innerHTML = links
+      .map((l) => `<a href="${l.url}" target="_blank" class="platform-link">${l.name}</a>`).join('');
+  }
+
+  function renderShortPlatforms() {
+    const platforms = ['抖音', '快手', '小红书', 'B站', '微博', '皮皮虾', '汽水音乐', '火山'];
+    $('shortPlatforms').innerHTML = platforms
+      .map((p) => `<span class="platform-tag">${p}</span>`).join('');
+  }
+
+  // ============================================================
+  //  工具函数
+  // ============================================================
+  function isValidUrl(str) {
+    try { const u = new URL(str); return u.protocol === 'http:' || u.protocol === 'https:'; }
+    catch (_) { return false; }
+  }
+
+  function extractBvAv(str) {
+    const bv = str.match(/BV[a-zA-Z0-9]+/);
+    const av = str.match(/av(\d+)/i);
+    return { bv: bv ? bv[0] : '', av: av ? av[1] : '' };
+  }
+
+  // ============================================================
+  //  VIP 长视频解析
+  // ============================================================
+  async function handleVipParse() {
+    const url = vipUrl.value.trim();
+    if (!url) return showMsg('请输入视频地址', 'error');
+    if (!isValidUrl(url)) return showMsg('请输入有效的视频网址', 'error');
+
+    currentVipUrl = url;
+    const api = vipApi.value;
+
+    saveToHistory(url, await extractVideoInfoFallback(url));
+
+    if (api === 'smart') {
+      try {
+        const result = await routeTestUI.run(VIP_PARSE_APIS, async (onProgress, frameMap) => {
+          return await window.smartRouteManager.findBestRoute(VIP_PARSE_APIS, url, VIP_PARSE_APIS.length, onProgress, frameMap);
         });
-    }
-
-    // 初始化
-    function init() {
-        // 初始化解析线路
-        initializeParseApis();
-
-        // 绑定事件
-        parseBtn.addEventListener('click', handleParse);
-        videoUrlInput.addEventListener('keypress', handleKeyPress);
-        refreshBtn.addEventListener('click', refreshVideo);
-        closeBtn.addEventListener('click', closePlayer);
-        toggleHistoryBtn.addEventListener('click', toggleHistory);
-        clearHistoryBtn.addEventListener('click', clearHistory);
-        toggleStatsBtn.addEventListener('click', toggleStats);
-        clearStatsBtn.addEventListener('click', clearStats);
-
-        // 加载历史记录
-        loadHistoryFromStorage();
-        renderHistoryList();
-
-        // 从 URL 参数获取视频地址（如果有）
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlFromParam = urlParams.get('url');
-        if (urlFromParam) {
-            videoUrlInput.value = decodeURIComponent(urlFromParam);
-            handleParse();
-        }
-    }
-
-    // 处理回车键
-    function handleKeyPress(e) {
-        if (e.key === 'Enter') {
-            handleParse();
-        }
-    }
-
-    // 验证 URL
-    function isValidUrl(string) {
-        try {
-            const url = new URL(string);
-            return url.protocol === 'http:' || url.protocol === 'https:';
-        } catch (_) {
-            return false;
-        }
-    }
-
-    // 检查是否为支持的视频平台
-    function isSupportedPlatform(url) {
-        const supportedDomains = [
-            'iqiyi.com',
-            'qq.com',
-            'youku.com',
-            'mgtv.com',
-            'sohu.com',
-            'le.com',
-            'pptv.com',
-            '1905.com',
-            'ixigua.com',
-            'bilibili.com',
-            'acfun.cn',
-            'tudou.com'
-        ];
-
-        return supportedDomains.some(domain => url.includes(domain));
-    }
-
-    // 从URL提取视频标题和集数
-    async function extractVideoInfo(url) {
-        try {
-            // 使用新的视频信息提取器
-            if (window.videoInfoExtractor) {
-                const info = await window.videoInfoExtractor.extractVideoInfo(url);
-                return {
-                    title: info.title || '视频播放',
-                    episode: info.episode || '',
-                    duration: info.duration,
-                    platform: info.platform
-                };
-            }
-        } catch (error) {
-            console.error('提取视频信息失败:', error);
-        }
-
-        // 回退到原来的简单提取方法
-        let title = '视频播放';
-        let episode = '';
-
-        try {
-            // 解析URL
-            const urlObj = new URL(url);
-            const hostname = urlObj.hostname;
-            
-            // 尝试从URL提取信息
-            const pathname = urlObj.pathname;
-            const search = urlObj.search;
-            
-            // 尝试从URL中提取剧集信息
-            const episodeMatch = pathname.match(/(第)?(\d+)集/);
-            if (episodeMatch) {
-                episode = `第${episodeMatch[2] || episodeMatch[1]}集`;
-            }
-            
-            // 尝试提取剧集数字
-            const numberMatch = pathname.match(/[\?&](ep|episode|num)=(\d+)/i);
-            if (numberMatch && numberMatch[2]) {
-                episode = `第${numberMatch[2]}集`;
-            }
-
-            // 从URL中提取可能的标题
-            const segments = pathname.split('/').filter(s => s);
-            if (segments.length > 0) {
-                const lastSegment = segments[segments.length - 1];
-                // 移除数字后缀
-                title = lastSegment.replace(/[-_]?\d+集?$/, '');
-                title = title.replace(/[-_]/g, ' ');
-                // 只取合理长度的标题
-                if (title.length > 50) {
-                    title = title.substring(0, 50) + '...';
-                }
-            }
-
-            // 如果标题太短或无意义，使用默认值
-            if (!title || title.length < 2) {
-                title = '视频播放';
-            }
-        } catch (e) {
-            // 解析失败，使用默认值
-        }
-
-        return { title, episode, duration: null, platform: 'unknown' };
-    }
-
-    // 处理解析
-    async function handleParse() {
-        const videoUrl = videoUrlInput.value.trim();
-        const parseApi = parseApiSelect.value;
-
-        // 验证 URL
-        if (!videoUrl) {
-            showMessage('请输入视频地址', 'error');
-            return;
-        }
-
-        if (!isValidUrl(videoUrl)) {
-            showMessage('请输入有效的视频地址', 'error');
-            return;
-        }
-
-        // 提取视频信息
-        const videoInfo = await extractVideoInfo(videoUrl);
-        currentVideoInfo = videoInfo;
-        currentVideoUrl = videoUrl;
-
-        // 保存到历史记录
-        saveToHistory(videoUrl, videoInfo);
-
-        // 更新播放器标题
-        updatePlayerTitle(videoInfo);
-
-        // 显示加载状态
-        showLoading();
-
-        try {
-            if (parseApi === 'smart') {
-                // 使用智能路由
-                await handleSmartParse(videoUrl);
-            } else {
-                // 使用指定线路
-                currentParseApi = parseApi;
-                setTimeout(() => {
-                    loadVideo(parseApi + encodeURIComponent(videoUrl));
-                }, 300);
-            }
-        } catch (error) {
-            loadingOverlay.classList.add('hidden');
-            showMessage('解析失败，请尝试手动选择线路', 'error');
-            console.error('解析失败:', error);
-        }
-    }
-
-    // 智能解析处理
-    async function handleSmartParse(videoUrl) {
-        try {
-            showMessage('🔍 正在智能检测最佳线路...', 'info');
-            
-            // 使用智能路由管理器找到最佳线路
-            const result = await window.smartRouteManager.findBestRoute(videoUrl);
-            
-            if (result.success) {
-                currentParseApi = result.api.url;
-                showMessage(`✅ 已选择最佳线路：${result.api.name}（响应时间：${result.responseTime}ms）`, 'success');
-                
-                // 延迟一点时间让用户看到消息
-                setTimeout(() => {
-                    loadVideo(result.url);
-                }, 800);
-            } else {
-                // 即使测试失败，也尝试使用该线路
-                currentParseApi = result.api.url;
-                showMessage(`⚠️ 使用线路：${result.api.name}（其他线路可能更慢）`, 'warning');
-                
-                setTimeout(() => {
-                    loadVideo(result.url);
-                }, 800);
-            }
-        } catch (error) {
-            // 智能路由失败，回退到第一个线路
-            const fallbackApi = PARSE_APIS[0];
-            currentParseApi = fallbackApi.url;
-            showMessage('智能路由检测失败，使用默认线路', 'warning');
-            
-            setTimeout(() => {
-                loadVideo(fallbackApi.url + encodeURIComponent(videoUrl));
-            }, 300);
-        }
-    }
-
-    // 更新播放器标题
-    function updatePlayerTitle(videoInfo) {
-        videoTitle.textContent = videoInfo.title;
-        
-        if (videoInfo.episode) {
-            videoEpisode.textContent = videoInfo.episode;
-            videoEpisode.classList.remove('hidden');
+        if (result && result.success) {
+          switchContext = { apis: VIP_PARSE_APIS, excludeUrls: [], originalUrl: url };
+          currentVipApi = result.api.url;
+          setTimeout(() => openPlayer(result.url, url, result), 300);
         } else {
-            videoEpisode.classList.add('hidden');
+          fallbackVip(url);
         }
-
-        // 显示时长信息（如果有）
-        if (videoInfo.duration) {
-            let durationDisplay = document.getElementById('videoDuration');
-            if (!durationDisplay) {
-                durationDisplay = document.createElement('div');
-                durationDisplay.id = 'videoDuration';
-                durationDisplay.className = 'video-duration';
-                
-                // 插入到播放器信息区域
-                const playerInfo = document.querySelector('.player-info');
-                if (playerInfo) {
-                    playerInfo.appendChild(durationDisplay);
-                }
-            }
-            durationDisplay.textContent = `时长: ${videoInfo.duration}`;
-        }
-    }
-
-    // 刷新视频
-    function refreshVideo() {
-        if (!currentVideoUrl) {
-            showMessage('没有正在播放的视频', 'warning');
-            return;
-        }
-
-        showLoading();
-        setTimeout(() => {
-            loadVideo(currentParseApi + encodeURIComponent(currentVideoUrl));
-        }, 300);
-    }
-
-    // 显示加载状态
-    function showLoading() {
-        const originalText = parseBtn.querySelector('.btn-text').textContent;
-        parseBtn.querySelector('.btn-text').innerHTML = '<span class="loading"></span>';
-        parseBtn.disabled = true;
-
-        // 显示播放器并显示加载动画
-        playerContainer.classList.remove('hidden');
-        loadingOverlay.classList.remove('hidden');
-
-        // 平滑滚动到播放器
-        setTimeout(() => {
-            playerContainer.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'nearest' 
-            });
-        }, 100);
-
-        // 恢复按钮状态
-        setTimeout(() => {
-            parseBtn.querySelector('.btn-text').textContent = originalText;
-            parseBtn.disabled = false;
-        }, 500);
-    }
-
-    // 加载视频
-    function loadVideo(url) {
-        try {
-            videoPlayer.src = url;
-            
-            // 监听视频加载完成
-            videoPlayer.onload = function() {
-                // 延迟一点时间确保视频加载好再隐藏加载动画
-                setTimeout(() => {
-                    loadingOverlay.classList.add('hidden');
-                    showMessage('解析成功，开始播放', 'success');
-                    
-                    // 尝试获取视频信息
-                    tryGetVideoInfo();
-                }, 800);
-            };
-
-            // 监听视频加载错误
-            videoPlayer.onerror = function() {
-                loadingOverlay.classList.add('hidden');
-                showMessage('当前线路解析失败，请尝试切换其他线路', 'error');
-            };
-        } catch (error) {
-            loadingOverlay.classList.add('hidden');
-            showMessage('解析失败，请尝试切换其他线路', 'error');
-            console.error('加载视频失败:', error);
-        }
-    }
-
-    // 尝试获取视频信息（时长等）
-    function tryGetVideoInfo() {
-        try {
-            // 尝试从iframe中获取视频信息
-            const iframe = videoPlayer;
-            
-            // 设置一个定时器来检查视频信息
-            let attempts = 0;
-            const maxAttempts = 10;
-            
-            const checkVideoInfo = () => {
-                attempts++;
-                
-                try {
-                    // 尝试访问iframe内容（可能会因为跨域限制失败）
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                    const videoElement = iframeDoc.querySelector('video');
-                    
-                    if (videoElement && videoElement.duration && !isNaN(videoElement.duration)) {
-                        const duration = formatDuration(videoElement.duration);
-                        updateVideoInfo({
-                            duration: duration,
-                            currentTime: formatDuration(videoElement.currentTime || 0)
-                        });
-                        
-                        // 监听时间更新
-                        videoElement.addEventListener('timeupdate', () => {
-                            updateVideoInfo({
-                                duration: formatDuration(videoElement.duration),
-                                currentTime: formatDuration(videoElement.currentTime)
-                            });
-                        });
-                        
-                        return; // 成功获取，停止尝试
-                    }
-                } catch (e) {
-                    // 跨域限制，无法访问iframe内容
-                    console.log('无法访问iframe内容（跨域限制）');
-                }
-                
-                // 如果还没有达到最大尝试次数，继续尝试
-                if (attempts < maxAttempts) {
-                    setTimeout(checkVideoInfo, 1000);
-                } else {
-                    console.log('无法获取视频时长信息');
-                }
-            };
-            
-            // 开始检查
-            setTimeout(checkVideoInfo, 2000);
-            
-        } catch (error) {
-            console.error('获取视频信息失败:', error);
-        }
-    }
-
-    // 格式化时长
-    function formatDuration(seconds) {
-        if (!seconds || isNaN(seconds)) return '00:00';
-        
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = Math.floor(seconds % 60);
-        
-        if (hours > 0) {
-            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        } else {
-            return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-    }
-
-    // 更新视频信息显示
-    function updateVideoInfo(info) {
-        if (info.duration) {
-            // 在播放器工具栏中显示时长信息
-            let durationDisplay = document.getElementById('videoDuration');
-            if (!durationDisplay) {
-                durationDisplay = document.createElement('div');
-                durationDisplay.id = 'videoDuration';
-                durationDisplay.className = 'video-duration';
-                
-                // 插入到播放器信息区域
-                const playerInfo = document.querySelector('.player-info');
-                if (playerInfo) {
-                    playerInfo.appendChild(durationDisplay);
-                }
-            }
-            
-            if (info.currentTime && info.duration !== '00:00') {
-                durationDisplay.textContent = `${info.currentTime} / ${info.duration}`;
-            } else if (info.duration !== '00:00') {
-                durationDisplay.textContent = `时长: ${info.duration}`;
-            }
-        }
-    }
-
-    // 关闭播放器
-    function closePlayer() {
-        playerContainer.classList.add('hidden');
-        videoPlayer.src = '';
-        currentVideoUrl = '';
-        currentVideoInfo = null;
-        
-        // 滚动回顶部
-        window.scrollTo({ 
-            top: 0, 
-            behavior: 'smooth' 
-        });
-    }
-
-    // 历史记录功能
-    function saveToHistory(url, videoInfo) {
-        let history = getHistoryFromStorage();
-        
-        // 检查是否已存在
-        const existingIndex = history.findIndex(item => item.url === url);
-        if (existingIndex !== -1) {
-            // 更新时间
-            history[existingIndex].lastWatch = new Date().toISOString();
-        } else {
-            // 添加新记录
-            history.unshift({
-                url: url,
-                title: videoInfo.title,
-                episode: videoInfo.episode,
-                note: '',
-                lastWatch: new Date().toISOString()
-            });
-            
-            // 最多保留20条记录
-            if (history.length > 20) {
-                history = history.slice(0, 20);
-            }
-        }
-        
-        saveHistoryToStorage(history);
-        renderHistoryList();
-    }
-
-    function getHistoryFromStorage() {
-        try {
-            const history = localStorage.getItem('videoHistory');
-            return history ? JSON.parse(history) : [];
-        } catch (e) {
-            return [];
-        }
-    }
-
-    function loadHistoryFromStorage() {
-        // 在这里可以做一些历史记录的初始化工作
-    }
-
-    function saveHistoryToStorage(history) {
-        try {
-            localStorage.setItem('videoHistory', JSON.stringify(history));
-        } catch (e) {
-            console.error('保存历史记录失败:', e);
-        }
-    }
-
-    function renderHistoryList() {
-        const history = getHistoryFromStorage();
-        
-        if (history.length === 0) {
-            historyList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无观看历史</p>';
-            return;
-        }
-
-        historyList.innerHTML = history.map((item, index) => {
-            const date = new Date(item.lastWatch);
-            const dateStr = formatDate(date);
-            const episodeHtml = item.episode 
-                ? `<div class="history-item-episode">${item.episode}</div>` 
-                : '';
-            const note = item.note || '';
-            
-            return `
-                <div class="history-item">
-                    <div class="history-item-main" onclick="window.videoParser.playFromHistory('${item.url.replace(/'/g, "\\'")}')">
-                        <div class="history-item-title">${item.title}</div>
-                        ${episodeHtml}
-                        <div class="history-item-time">${dateStr}</div>
-                    </div>
-                    <div class="history-item-note">
-                        <input 
-                            type="text" 
-                            class="note-input" 
-                            placeholder="添加备注，如：第3集" 
-                            value="${note}"
-                            data-index="${index}"
-                            onchange="window.videoParser.updateNote(${index}, this.value)"
-                        >
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    function updateNote(index, note) {
-        const history = getHistoryFromStorage();
-        if (history[index]) {
-            history[index].note = note;
-            saveHistoryToStorage(history);
-            showMessage('备注已更新', 'success');
-        }
-    }
-
-    function formatDate(date) {
-        const now = new Date();
-        const diff = now - date;
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        
-        if (days === 0) {
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            if (hours === 0) {
-                const minutes = Math.floor(diff / (1000 * 60));
-                return minutes <= 0 ? '刚刚' : `${minutes}分钟前`;
-            }
-            return `${hours}小时前`;
-        } else if (days === 1) {
-            return '昨天';
-        } else if (days < 7) {
-            return `${days}天前`;
-        } else {
-            return date.toLocaleDateString('zh-CN');
-        }
-    }
-
-    function clearHistory() {
-        if (confirm('确定要清空所有观看历史吗？')) {
-            saveHistoryToStorage([]);
-            renderHistoryList();
-            showMessage('历史记录已清空', 'success');
-        }
-    }
-
-    function toggleHistory() {
-        historyContainer.classList.toggle('hidden');
-        // 隐藏统计容器
-        statsContainer.classList.add('hidden');
-        
-        if (!historyContainer.classList.contains('hidden')) {
-            // 滚动到历史记录
-            setTimeout(() => {
-                historyContainer.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'nearest' 
-                });
-            }, 100);
-        }
-    }
-
-    function toggleStats() {
-        statsContainer.classList.toggle('hidden');
-        // 隐藏历史容器
-        historyContainer.classList.add('hidden');
-        
-        if (!statsContainer.classList.contains('hidden')) {
-            renderStatsList();
-            // 滚动到统计信息
-            setTimeout(() => {
-                statsContainer.scrollIntoView({ 
-                    behavior: 'smooth', 
-                    block: 'nearest' 
-                });
-            }, 100);
-        }
-    }
-
-    function renderStatsList() {
-        if (!window.smartRouteManager) {
-            statsList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">统计数据加载中...</p>';
-            return;
-        }
-
-        const stats = window.smartRouteManager.getRouteStatsInfo();
-        
-        if (stats.length === 0 || stats.every(s => s.totalTests === 0)) {
-            statsList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">暂无统计数据<br><small>使用智能路由后会显示各线路的性能统计</small></p>';
-            return;
-        }
-
-        statsList.innerHTML = stats.map((stat, index) => {
-            const lastUsedText = stat.lastUsed ? formatDate(new Date(stat.lastUsed)) : '从未使用';
-            const successRateColor = stat.successRate >= 80 ? '#48bb78' : 
-                                   stat.successRate >= 50 ? '#ed8936' : '#f56565';
-            
-            return `
-                <div class="stats-item">
-                    <div class="stats-item-header">
-                        <div class="stats-item-name">${stat.name}</div>
-                        <div class="stats-item-rate" style="color: ${successRateColor}">
-                            ${stat.successRate}%
-                        </div>
-                    </div>
-                    <div class="stats-item-details">
-                        <div class="stats-detail">
-                            <span class="stats-label">响应时间:</span>
-                            <span class="stats-value">${stat.avgResponseTime}ms</span>
-                        </div>
-                        <div class="stats-detail">
-                            <span class="stats-label">测试次数:</span>
-                            <span class="stats-value">${stat.totalTests}</span>
-                        </div>
-                        <div class="stats-detail">
-                            <span class="stats-label">最后使用:</span>
-                            <span class="stats-value">${lastUsedText}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    }
-
-    function clearStats() {
-        if (confirm('确定要清空所有线路统计数据吗？')) {
-            if (window.smartRouteManager) {
-                window.smartRouteManager.routeStats = {};
-                window.smartRouteManager.saveRouteStats();
-                renderStatsList();
-                showMessage('统计数据已清空', 'success');
-            }
-        }
-    }
-
-    function playFromHistory(url) {
-        videoUrlInput.value = url;
-        handleParse();
-        historyContainer.classList.add('hidden');
-    }
-
-    // 显示消息提示
-    function showMessage(message, type = 'info') {
-        // 创建消息元素
-        const messageEl = document.createElement('div');
-        messageEl.className = `message message-${type}`;
-        messageEl.textContent = message;
-        
-        // 添加样式
-        Object.assign(messageEl.style, {
-            position: 'fixed',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            color: 'white',
-            fontSize: '14px',
-            fontWeight: '500',
-            zIndex: '10000',
-            animation: 'slideDown 0.3s ease-out',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-        });
-
-        // 根据类型设置背景色
-        const colors = {
-            success: '#48bb78',
-            error: '#f56565',
-            warning: '#ed8936',
-            info: '#4299e1'
-        };
-        messageEl.style.background = colors[type] || colors.info;
-
-        // 添加动画样式
-        if (!document.getElementById('message-animation-style')) {
-            const style = document.createElement('style');
-            style.id = 'message-animation-style';
-            style.textContent = `
-                @keyframes slideDown {
-                    from {
-                        opacity: 0;
-                        transform: translateX(-50%) translateY(-20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(-50%) translateY(0);
-                    }
-                }
-            `;
-            document.head.appendChild(style);
-        }
-
-        document.body.appendChild(messageEl);
-
-        // 3秒后自动移除
-        setTimeout(() => {
-            messageEl.style.animation = 'slideDown 0.3s ease-out reverse';
-            setTimeout(() => {
-                if (document.body.contains(messageEl)) {
-                    document.body.removeChild(messageEl);
-                }
-            }, 300);
-        }, 3000);
-    }
-
-    // 页面加载完成后初始化
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+      } catch (_) {
+        fallbackVip(url);
+      }
     } else {
-        init();
+      switchContext = { apis: VIP_PARSE_APIS, excludeUrls: [], originalUrl: url };
+      currentVipApi = api;
+      openPlayer(api + encodeURIComponent(url), url, { api: { url: api } });
+    }
+  }
+
+  function fallbackVip(url) {
+    switchContext = { apis: VIP_PARSE_APIS, excludeUrls: [], originalUrl: url };
+    const fb = VIP_PARSE_APIS[0];
+    currentVipApi = fb.url;
+    showMsg('智能检测失败，使用默认线路', 'warning');
+    setTimeout(() =>     openPlayer(fb.url + encodeURIComponent(url), url, { api: { url: fb.url } }), 300);
+  }
+
+  // 当前线路播放失败时，一键切换到下一条候选接口
+  async function switchRoute() {
+    if (!switchContext) return showMsg('当前非智能选择，请直接更换线路', 'warning');
+    if (!window.smartRouteManager) return;
+    // 把刚失败的线路计入统计失败
+    if (currentVipApi) {
+      window.smartRouteManager.updateRouteStats(currentVipApi, false, 0);
+    }
+    if (!switchContext.excludeUrls.includes(currentVipApi)) {
+      switchContext.excludeUrls.push(currentVipApi);
+    }
+    const next = window.smartRouteManager.nextCandidate(switchContext.apis, switchContext.excludeUrls);
+    if (!next) {
+      showMsg('已尝试所有可用线路，均无可用播放', 'error');
+      return;
+    }
+    currentVipApi = next.api.url;
+    const testUrl = resolveApiUrl(next.api, switchContext.originalUrl);
+    showMsg('正在切换到：' + next.api.name, 'info');
+    openPlayer(testUrl, switchContext.originalUrl, next);
+  }
+
+  function resolveApiUrl(api, url) {
+    const base = api.url.startsWith('//') ? 'https:' + api.url : api.url;
+    return base + encodeURIComponent(url);
+  }
+
+  // ============================================================
+  //  短视频解析
+  // ============================================================
+  async function handleShortParse() {
+    const url = shortUrl.value.trim();
+    if (!url) return showMsg('请输入短视频链接', 'error');
+    if (!isValidUrl(url)) return showMsg('请输入有效的视频链接', 'error');
+
+    const api = shortApi.value;
+
+    if (api === 'smart') {
+      try {
+        const result = await routeTestUI.run(
+          SHORT_VIDEO_APIS,
+          async (onProgress, frameMap) => {
+            return await window.smartRouteManager.findBestRoute(SHORT_VIDEO_APIS, url, SHORT_VIDEO_APIS.length, onProgress, frameMap);
+          },
+          (final) => onShortResolved(final, url)
+        );
+        if (!result) {
+          openShortResult(SHORT_VIDEO_APIS[0].url + encodeURIComponent(url), url);
+        }
+      } catch (_) {
+        openShortResult(SHORT_VIDEO_APIS[0].url + encodeURIComponent(url), url);
+      }
+    } else {
+      openShortResult(api + encodeURIComponent(url), url);
+    }
+  }
+
+  // 短视频智能检测完成后：与 VIP 共用同一套展开动画弹窗，
+  // 这里在展开后的瓦片内渲染"去水印结果"（下载/直链/封面等）
+  function onShortResolved(result, url) {
+    switchContext = { apis: SHORT_VIDEO_APIS, excludeUrls: [], originalUrl: url };
+    const entry = routeTestUI.tileMap.get(result.api.url);
+    if (!entry) { openShortResult(result.url, url); return; }
+
+    const body = entry.el;
+    // 复用同一套品牌卡片样式承载结果
+    let box = body.querySelector('.rt-short-result');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'rt-short-result';
+      body.appendChild(box);
     }
 
-    // 添加一些实用工具函数到 window 对象
-    window.videoParser = {
-        parse: handleParse,
-        playFromHistory: playFromHistory,
-        updateNote: updateNote
+    const l2 = result.l2Details;
+    if (result.success && l2 && l2.passed && l2.rawData) {
+      box.innerHTML = buildShortResultHtml(l2.rawData, result.duration || l2.duration);
+    } else {
+      box.innerHTML = `
+        <div class="rt-short-fallback">
+          <p>未获取到结构化数据，可点下方按钮在新页面查看解析结果：</p>
+          <a href="${result.url}" target="_blank" class="btn btn-primary btn-block" style="text-decoration:none;margin-top:8px;">打开解析页面</a>
+        </div>`;
+    }
+  }
+
+  function openShortResult(apiUrl) {
+    routeTestUI.showManualResult(apiUrl, '解析结果', (box) => {
+      box.innerHTML = '<div style="padding:24px;text-align:center;color:rgba(255,255,255,0.6);">正在加载解析...</div>';
+      fetch(apiUrl)
+        .then((r) => r.text())
+        .then((text) => {
+          try { box.innerHTML = buildShortResultHtml(JSON.parse(text)); }
+          catch (_) { box.innerHTML = buildShortFallbackHtml(apiUrl, text); }
+        })
+        .catch(() => { box.innerHTML = buildShortFallbackHtml(apiUrl); });
+    });
+  }
+
+  function buildShortFallbackHtml(apiUrl, rawText) {
+    const hasRaw = rawText && rawText.length > 0;
+    return `
+      <p class="rt-short-meta">${hasRaw ? '解析结果：' : '无法直接获取JSON（跨域限制），请在新页面查看：'}</p>
+      <a href="${apiUrl}" target="_blank" class="btn btn-primary btn-block" style="text-decoration:none;margin-bottom:8px;">打开解析页面</a>
+      <iframe src="${apiUrl}" style="width:100%;height:280px;border:1px solid rgba(255,255,255,0.08);border-radius:8px;"></iframe>
+      ${hasRaw ? `<pre class="rt-short-raw">${escapeHtml(rawText)}</pre>` : ''}
+    `;
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  }
+
+  function extractDurationFromData(obj) {
+    const keys = ['duration', 'time', 'length', 'vtime', 'play_time', 'video_time', 'size'];
+    const found = (o, d) => {
+      if (d > 4 || !o || typeof o !== 'object') return null;
+      if (Array.isArray(o)) { for (const i of o) { const r = found(i, d + 1); if (r) return r; } return null; }
+      for (const k of keys) {
+        const v = o[k];
+        if (typeof v === 'number' && v > 0) return v > 100000 ? Math.round(v / 1000) : Math.round(v);
+        if (typeof v === 'string') { const n = parseFloat(v); if (!isNaN(n) && n > 0) return v > 100000 ? Math.round(n / 1000) : Math.round(n); }
+      }
+      for (const k of Object.keys(o)) { const r = found(o[k], d + 1); if (r) return r; }
+      return null;
     };
+    return found(obj, 0);
+  }
+
+  // 与 buildShortResultHtml 共用同一套卡片内容（供"智能检测"展开瓦片内渲染）
+  function buildShortResultHtml(data, duration) {
+    let html = '';
+    if (data.title) html += `<p class="rt-short-title">${data.title}</p>`;
+    if (data.cover) html += `<img src="${data.cover}" class="rt-short-cover" alt="cover">`;
+    if (data.url) {
+      html += `<a href="${data.url}" target="_blank" class="btn btn-primary btn-block" style="text-decoration:none;margin-bottom:8px;">下载视频</a>`;
+    }
+    const dur = duration || extractDurationFromData(data);
+    if (dur) {
+      html += `<p class="rt-short-meta">时长：${window.videoInfoExtractor.formatDuration(dur)}</p>`;
+    }
+    if (data.author) html += `<p class="rt-short-meta">作者：${data.author}</p>`;
+    if (!html) html = `<pre class="rt-short-raw">${JSON.stringify(data, null, 2)}</pre>`;
+    return html;
+  }
+  async function handleBiliParse() {
+    let bv = biliBv.value.trim();
+    let av = biliAv.value.trim();
+
+    if (!bv && !av) { return showMsg('请输入 BV 号或 AV 号', 'error'); }
+    const extracted = extractBvAv(bv || av);
+    if (extracted.bv) bv = extracted.bv;
+    if (extracted.av) av = extracted.av;
+
+    const quality = biliQuality.value;
+    const params = new URLSearchParams({ otype: biliOtype, q: quality });
+    if (bv) params.set('bv', bv);
+    else params.set('av', av);
+
+    const apiUrl = BILI_API.baseUrl + '?' + params.toString();
+    showMsg('正在解析B站视频...', 'info');
+
+    try {
+      const res = await fetch(apiUrl);
+      const text = await res.text();
+      let display = text;
+      try { display = JSON.stringify(JSON.parse(text), null, 2); } catch (_) { /* raw */ }
+      biliResultContent.textContent = display;
+      biliResult.classList.remove('hidden');
+      showMsg('解析成功', 'success');
+
+      if (biliOtype === 'url') {
+        const cleanUrl = text.trim();
+        if (isValidUrl(cleanUrl)) {
+          openPlayer(cleanUrl, '');
+        }
+      }
+      if (biliOtype === 'dplayer') {
+        openPlayer(apiUrl, '');
+      }
+    } catch (e) {
+      showMsg('B站解析失败：' + e.message, 'error');
+    }
+  }
+
+  // ============================================================
+  //  播放器
+  // ============================================================
+  function openPlayer(src, originalUrl, route) {
+    playerTitle.textContent = '视频播放';
+    playerEpisode.classList.add('hidden');
+    playerOverlay.classList.remove('hidden');
+    loadingOverlay.classList.remove('hidden');
+    videoPlayer.src = src;
+
+    // 播放器内显示时长（仅 JSON 类接口可获取，HTML 跨域无法读取）
+    if (route && route.duration) {
+      playerEpisode.textContent = '时长 ' + window.videoInfoExtractor.formatDuration(route.duration);
+      playerEpisode.classList.remove('hidden');
+    }
+
+    setTimeout(() => {
+      playerOverlay.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+
+    if (originalUrl) {
+      const history = getHistory();
+      const found = history.find((h) => h.url === originalUrl);
+      if (found) {
+        playerTitle.textContent = found.title || '视频播放';
+        if (found.episode) {
+          playerEpisode.textContent = found.episode;
+          playerEpisode.classList.remove('hidden');
+        }
+      }
+    }
+
+    // 播放健康看门狗：线路若长时间仍在 loading，说明实际未播放
+    schedulePlaybackWatchdog();
+  }
+
+  let _watchdogTimer = null;
+  function schedulePlaybackWatchdog() {
+    if (_watchdogTimer) { clearTimeout(_watchdogTimer); _watchdogTimer = null; }
+    _watchdogTimer = setTimeout(() => {
+      _watchdogTimer = null;
+      // 播放器已关闭 或 已正常隐藏 loading → 视为成功，不做处理
+      if (playerOverlay.classList.contains('hidden')) return;
+      if (loadingOverlay.classList.contains('hidden')) return;
+      // 仍在 loading：线路很可能失效
+      const sw = $('playerSwitch');
+      if (sw) {
+        sw.classList.add('player-switch-alert');
+        showMsg('该线路可能未正常播放，可点「换线路」尝试其他接口', 'error');
+      }
+    }, 12000);
+  }
+
+  function refreshVideo() {
+    if (!videoPlayer.src) return showMsg('没有正在播放的视频', 'warning');
+    loadingOverlay.classList.remove('hidden');
+    const currentSrc = videoPlayer.src;
+    videoPlayer.src = '';
+    setTimeout(() => { videoPlayer.src = currentSrc; }, 200);
+  }
+
+  function closePlayer() {
+    if (_watchdogTimer) { clearTimeout(_watchdogTimer); _watchdogTimer = null; }
+    const sw = $('playerSwitch');
+    if (sw) sw.classList.remove('player-switch-alert');
+    playerOverlay.classList.add('hidden');
+    videoPlayer.src = '';
+  }
+
+  // ============================================================
+  //  历史记录
+  // ============================================================
+  function getHistory() {
+    try { return JSON.parse(localStorage.getItem('videoHistory') || '[]'); }
+    catch (_) { return []; }
+  }
+
+  function setHistory(h) {
+    try { localStorage.setItem('videoHistory', JSON.stringify(h)); }
+    catch (_) { /* ignore */ }
+  }
+
+  function saveToHistory(url, info) {
+    const h = getHistory();
+    const idx = h.findIndex((i) => i.url === url);
+    const entry = {
+      url,
+      title: info.title || '视频播放',
+      episode: info.episode || '',
+      note: '',
+      lastWatch: new Date().toISOString(),
+    };
+    if (idx !== -1) { h[idx] = { ...h[idx], ...entry }; }
+    else { h.unshift(entry); }
+    if (h.length > 30) h.length = 30;
+    setHistory(h);
+    renderHistoryList();
+  }
+
+  async function extractVideoInfoFallback(url) {
+    try {
+      if (window.videoInfoExtractor) {
+        return await window.videoInfoExtractor.extractVideoInfo(url);
+      }
+    } catch (_) { /* ignore */ }
+    return { title: '视频播放', episode: '', platform: 'unknown' };
+  }
+
+  function renderHistoryList() {
+    const h = getHistory();
+    if (h.length === 0) {
+      historyList.innerHTML = '<div class="empty-state">暂无观看历史</div>';
+      return;
+    }
+    historyList.innerHTML = h.map((item, i) => {
+      const dateStr = formatDate(item.lastWatch);
+      return `
+        <div class="history-item">
+          <div class="history-item-main" data-index="${i}">
+            <div class="history-item-title">${item.title}</div>
+            ${item.episode ? `<div class="history-item-episode">${item.episode}</div>` : ''}
+            <div class="history-item-time">${dateStr}</div>
+          </div>
+          <input type="text" class="note-input" placeholder="添加备注" value="${item.note || ''}" data-history-index="${i}">
+        </div>
+      `;
+    }).join('');
+
+    historyList.querySelectorAll('.history-item-main').forEach((el) => {
+      el.addEventListener('click', () => {
+        const i = parseInt(el.dataset.index);
+        const h = getHistory();
+        if (h[i]) {
+          vipUrl.value = h[i].url;
+          switchTab('vip');
+          handleVipParse();
+          historyDrawer.classList.add('hidden');
+        }
+      });
+    });
+
+    historyList.querySelectorAll('.note-input').forEach((el) => {
+      el.addEventListener('change', () => {
+        const i = parseInt(el.dataset.historyIndex);
+        const h = getHistory();
+        if (h[i]) {
+          h[i].note = el.value;
+          setHistory(h);
+        }
+      });
+    });
+  }
+
+  function clearHistory() {
+    setHistory([]);
+    renderHistoryList();
+    showMsg('历史已清空', 'success');
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diff = now - d;
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) {
+      const hrs = Math.floor(diff / 3600000);
+      if (hrs === 0) { const mins = Math.floor(diff / 60000); return mins <= 0 ? '刚刚' : `${mins}分钟前`; }
+      return `${hrs}小时前`;
+    }
+    if (days === 1) return '昨天';
+    if (days < 7) return `${days}天前`;
+    return d.toLocaleDateString('zh-CN');
+  }
+
+  // ============================================================
+  //  统计
+  // ============================================================
+  function renderStats() {
+    if (!window.smartRouteManager) {
+      statsList.innerHTML = '<div class="empty-state">加载中...</div>';
+      return;
+    }
+    const data = window.smartRouteManager.getRouteStatsInfo();
+    const hasData = data.some((s) => s.totalTests > 0);
+    if (!hasData) {
+      statsList.innerHTML = '<div class="empty-state">暂无数据<br><small>使用解析后这里会显示线路性能</small></div>';
+      return;
+    }
+    statsList.innerHTML = data.map((s) => {
+      const color = s.successRate >= 80 ? '#48bb78' : s.successRate >= 50 ? '#ed8936' : '#f56565';
+      return `
+        <div class="stats-item">
+          <div class="stats-item-header">
+            <span class="stats-item-name">${s.name}</span>
+            <span class="stats-item-rate" style="color:${color}">${s.successRate}%</span>
+          </div>
+          <div class="stats-detail"><span class="stats-label">响应时间</span><span class="stats-value">${s.avgResponseTime}ms</span></div>
+          <div class="stats-detail"><span class="stats-label">测试次数</span><span class="stats-value">${s.totalTests}</span></div>
+          <div class="stats-detail"><span class="stats-label">最后使用</span><span class="stats-value">${s.lastUsed ? formatDate(s.lastUsed) : '从未'}</span></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function clearStats() {
+    if (window.smartRouteManager) {
+      window.smartRouteManager.routeStats = {};
+      window.smartRouteManager.saveRouteStats();
+      renderStats();
+      showMsg('统计数据已清空', 'success');
+    }
+  }
+
+  // ============================================================
+  //  抽屉
+  // ============================================================
+  function toggleDrawer(open, close) {
+    const isOpen = !open.classList.contains('hidden');
+    open.classList.toggle('hidden');
+    if (close) close.classList.add('hidden');
+    if (open === statsDrawer && !isOpen) renderStats();
+  }
+
+  // ============================================================
+  //  消息
+  // ============================================================
+  function showMsg(text, type) {
+    const el = document.createElement('div');
+    el.className = `message msg-${type}`;
+    el.textContent = text;
+    msgContainer.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transition = 'opacity .3s';
+      setTimeout(() => { if (msgContainer.contains(el)) msgContainer.removeChild(el); }, 300);
+    }, 3000);
+  }
+
+  // ============================================================
+  //  智能线路检测 UI（多窗口视频墙）
+  // ============================================================
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  class RouteTestUI {
+    constructor() {
+      this.modal = document.getElementById('routeTestModal');
+      this.gridEl = document.getElementById('rtGrid');
+      this.statusEl = document.getElementById('rtStatus');
+      this.cancelBtn = document.getElementById('rtCancelBtn');
+      this.tileMap = new Map();
+      this.frameMap = new Map();
+      this.selected = false;
+      this._animating = false;
+      this._resolveRun = null;
+
+      this.cancelBtn.addEventListener('click', () => this._cancel());
+    }
+
+    _cancel() {
+      if (window.smartRouteManager) window.smartRouteManager.cancelAllTests();
+      this.hide();
+      if (this._resolveRun) { const cb = this._resolveRun; this._resolveRun = null; cb(null); }
+    }
+
+    // 手动选择线路 / 降级兜底时，复用同一套弹窗展现单个结果
+    //   headerName：线路名；buildFn(htmlContainer) 负责填充内容
+    showManualResult(apiUrl, headerName, buildFn) {
+      if (window.smartRouteManager) window.smartRouteManager.cancelAllTests();
+      this.hide();
+      this.gridEl.innerHTML = '';
+      this.tileMap.clear();
+      this.frameMap.clear();
+
+      this.modal.classList.remove('hidden');
+      this.statusEl.textContent = headerName || '解析结果';
+      this.cancelBtn.textContent = '关闭';
+      this.cancelBtn.onclick = () => this.hide();
+
+      const tile = document.createElement('div');
+      tile.className = 'rt-tile expanded';
+      tile.style.position = 'fixed';
+      tile.style.inset = '0';
+      tile.style.borderRadius = '0';
+
+      tile.innerHTML =
+        '<div class="rt-tile-top">' +
+          '<span class="rt-tile-name">' + (headerName || '解析结果') + '</span>' +
+          '<span class="rt-tile-status">已选中</span>' +
+          '<span class="rt-tile-badge">🎯 最优</span>' +
+        '</div>' +
+        '<div class="rt-tile-video"><iframe sandbox="allow-scripts allow-same-origin" src="' + apiUrl + '"></iframe></div>';
+
+      const box = document.createElement('div');
+      box.className = 'rt-short-result';
+      tile.appendChild(box);
+      this.gridEl.appendChild(tile);
+      this.tileMap.set(apiUrl, { el: tile });
+
+      buildFn(box, apiUrl);
+    }
+
+    async run(apis, testFn, onDone) {
+      if (window.smartRouteManager) window.smartRouteManager.cancelAllTests();
+      this.hide();
+      this.gridEl.innerHTML = '';
+      this.tileMap.clear();
+      this.frameMap.clear();
+
+      return new Promise(async (resolve) => {
+        this._resolveRun = resolve;
+        this._onDone = onDone;
+        this.selected = false;
+        this._animating = false;
+
+        this.modal.classList.remove('hidden');
+        this.statusEl.textContent = '并行测试 ' + apis.length + ' 个接口...';
+        this.cancelBtn.textContent = '取消';
+        this.cancelBtn.onclick = () => this._cancel();
+
+        apis.forEach((api, i) => {
+          const tile = this._createTile(api, i);
+          this.gridEl.appendChild(tile);
+        });
+
+        await sleep(150);
+
+        try {
+          const testResult = await testFn(
+            (event) => this._handleProgress(event),
+            this.frameMap
+          );
+          if (!this.selected) {
+            if (testResult && testResult.success) {
+              await this._animateExpand(testResult.api, testResult);
+            } else {
+              this.statusEl.textContent = '未找到可用线路';
+              await sleep(1000);
+              this.hide();
+              resolve(null);
+            }
+          }
+        } catch (err) {
+          this.statusEl.textContent = '检测异常: ' + (err.message || '未知');
+          await sleep(800);
+          this.hide();
+          resolve(null);
+        }
+      });
+    }
+
+    _createTile(api, index) {
+      const tile = document.createElement('div');
+      tile.className = 'rt-tile';
+      tile.dataset.url = api.url;
+
+      tile.innerHTML =
+        '<div class="rt-tile-top">' +
+          '<span class="rt-tile-name">' + api.name + '</span>' +
+          '<span class="rt-tile-status">连接中</span>' +
+          '<span class="rt-tile-time">-</span>' +
+        '</div>' +
+        '<div class="rt-tile-video">' +
+          '<iframe sandbox="allow-scripts allow-same-origin" loading="lazy"></iframe>' +
+          '<div class="rt-tile-shimmer"></div>' +
+        '</div>' +
+        '<div class="rt-tile-badge">检测中</div>';
+
+      tile.style.opacity = '0';
+      tile.style.transform = 'scale(0.85) translateY(12px)';
+      setTimeout(() => {
+        tile.style.transition = 'opacity 0.35s ease, transform 0.35s ease';
+        tile.style.opacity = '1';
+        tile.style.transform = 'scale(1) translateY(0)';
+      }, 40 + index * 50);
+
+      const iframe = tile.querySelector('iframe');
+      this.frameMap.set(api.url, iframe);
+      this.tileMap.set(api.url, {
+        el: tile,
+        iframe,
+        statusEl: tile.querySelector('.rt-tile-status'),
+        timeEl: tile.querySelector('.rt-tile-time'),
+        badgeEl: tile.querySelector('.rt-tile-badge'),
+      });
+
+      return tile;
+    }
+
+    _handleProgress(event) {
+      if (this.selected) return;
+      const entry = this.tileMap.get(event.api?.url);
+      if (!entry) return;
+      const { el, statusEl, timeEl, badgeEl } = entry;
+
+      switch (event.type) {
+        case 'l1_start':
+          statusEl.textContent = '连接中';
+          badgeEl.textContent = '连通测试';
+          break;
+
+        case 'l1_ok':
+          el.classList.add('l1-pass');
+          statusEl.textContent = '已连通';
+          timeEl.textContent = event.responseTime + 'ms';
+          badgeEl.textContent = '连通 ✓';
+          const s1 = el.querySelector('.rt-tile-shimmer');
+          if (s1) s1.closest('.rt-tile-video').classList.add('shimmer-done');
+          break;
+
+        case 'l1_fail':
+          statusEl.textContent = event.error || '超时';
+          timeEl.textContent = event.responseTime + 'ms';
+          badgeEl.textContent = '✗ 失败';
+          el.classList.add('eliminated');
+          const s2 = el.querySelector('.rt-tile-shimmer');
+          if (s2) s2.parentElement.classList.add('shimmer-done');
+          break;
+
+        case 'l2_start':
+          statusEl.textContent = event.responseType === 'json' ? '解析数据' : '验证内容';
+          badgeEl.textContent = '内容验证';
+          break;
+
+        case 'l2_ok':
+          el.classList.add('l2-pass');
+          timeEl.textContent = event.responseTime + 'ms';
+          if (event.realPlayable) {
+            statusEl.textContent = '实测可播放';
+            badgeEl.textContent = '✓ 实测';
+          } else {
+            statusEl.textContent = '验证通过';
+            badgeEl.textContent = '验证 ✓';
+          }
+          break;
+
+        case 'l2_fail':
+          if (event.inconclusive) {
+            statusEl.textContent = '内容不可验证';
+            badgeEl.textContent = '⚠ 未知';
+          } else {
+            statusEl.textContent = event.reason || '验证失败';
+            badgeEl.textContent = '✗';
+            el.classList.add('eliminated');
+          }
+          break;
+
+        case 'selected':
+          this.selected = true;
+          this._animateExpand(event.api, event.result);
+          return;
+      }
+    }
+
+    async _animateExpand(api, result) {
+      if (this._animating) return;
+      this._animating = true;
+
+      const entry = this.tileMap.get(api.url);
+
+      this.statusEl.textContent = '🎯 已选择: ' + api.name;
+      this.cancelBtn.textContent = '关闭';
+      this.cancelBtn.onclick = () => { this.hide(); this._onDone?.(result); this._resolveRun?.(result); };
+
+      if (entry) {
+        entry.el.classList.remove('eliminated');
+        entry.el.classList.add('selected');
+        entry.statusEl.textContent = '已选中';
+        entry.badgeEl.textContent = '🎯 最优';
+        if (result && result.realPlayable) {
+          entry.badgeEl.textContent = '✅ 实测可播';
+          if (result.duration) {
+            entry.statusEl.textContent = '✅ 可播 ' + window.videoInfoExtractor.formatDuration(result.duration);
+          }
+        }
+        const s3 = entry.el.querySelector('.rt-tile-shimmer');
+        if (s3) s3.parentElement.classList.add('shimmer-done');
+
+        this.tileMap.forEach((t, url) => {
+          if (url !== api.url) t.el.classList.add('eliminated');
+        });
+
+        await sleep(350);
+
+        this.gridEl.style.transition = 'grid-template-columns 0.5s ease, gap 0.5s ease';
+        this.gridEl.style.gridTemplateColumns = '1fr';
+        this.gridEl.style.gap = '0';
+        entry.el.style.aspectRatio = 'unset';
+        entry.el.style.borderRadius = '0';
+        entry.el.style.borderWidth = '3px';
+        entry.el.classList.add('expanded');
+
+        await sleep(550);
+      }
+
+      this._onDone?.(result);
+      this._resolveRun?.(result);
+    }
+
+    hide() {
+      this.modal.classList.add('hidden');
+      this.modal.style.opacity = '';
+      this.modal.style.transform = '';
+      this.gridEl.innerHTML = '';
+      this.tileMap.clear();
+      this.frameMap.clear();
+      this.selected = false;
+      this._animating = false;
+      this.gridEl.style.gridTemplateColumns = '';
+      this.gridEl.style.gap = '';
+      this.gridEl.style.transition = '';
+      this.cancelBtn.textContent = '取消';
+      this.cancelBtn.onclick = () => this._cancel();
+    }
+  }
+
+  // ============================================================
+  //  Boot
+  // ============================================================
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
 })();

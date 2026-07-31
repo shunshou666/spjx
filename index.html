@@ -2,243 +2,257 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="免费在线视频解析工具，支持爱奇艺、腾讯、优酷、芒果TV等主流视频平台VIP视频解析">
-    <meta name="keywords" content="视频解析,VIP视频解析,爱奇艺解析,腾讯视频解析,优酷解析">
-    <title>视频解析 - 免费VIP视频在线解析</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="免费在线视频解析工具，支持爱奇艺、腾讯、优酷、芒果TV等VIP视频解析，以及抖音、快手、小红书等短视频无水印解析">
+    <meta name="keywords" content="视频解析,VIP视频解析,爱奇艺解析,腾讯视频解析,优酷解析,抖音解析,快手解析,去水印">
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)">
+    <title>视频解析 - VIP视频·短视频·B站解析</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+    <link rel="mask-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>" color="#7c3aed">
 </head>
 <body>
-    <!-- 背景装饰 -->
-    <div class="bg-decoration"></div>
-    
-    <!-- 主容器 -->
-    <div class="container">
-        <!-- 头部 -->
-        <header class="header">
-            <h1 class="title">视频解析</h1>
-            <p class="subtitle">支持爱奇艺、腾讯、优酷、芒果TV等主流平台VIP视频解析</p>
+    <div id="app">
+        <!-- ========== 头部 ========== -->
+        <header class="app-header">
+            <div class="header-inner">
+                <h1 class="app-title">视频解析</h1>
+                <p class="app-subtitle">VIP视频 · 短视频去水印 · B站高清</p>
+            </div>
         </header>
 
-        <!-- 解析表单 -->
-        <div class="parse-form">
-            <div class="form-group">
-                <label for="videoUrl">视频地址</label>
-                <input 
-                    type="text" 
-                    id="videoUrl" 
-                    class="input-url" 
-                    placeholder="请粘贴视频网址（支持爱奇艺、腾讯、优酷、芒果TV等）"
-                    autocomplete="off"
-                >
-            </div>
+        <!-- ========== Tab 导航 ========== -->
+        <nav class="tab-nav" id="tabNav">
+            <button class="tab-btn active" data-tab="vip" id="tabVip">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                <span class="tab-label">VIP解析</span>
+            </button>
+            <button class="tab-btn" data-tab="short" id="tabShort">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="8" y1="2" x2="8" y2="22"/><line x1="16" y1="2" x2="16" y2="22"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="2" y1="16" x2="22" y2="16"/></svg>
+                <span class="tab-label">短视频</span>
+            </button>
+            <button class="tab-btn" data-tab="bili" id="tabBili">
+                <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                <span class="tab-label">B站解析</span>
+            </button>
+        </nav>
 
-            <div class="form-group">
-                <label for="parseApi">解析线路</label>
-                <select id="parseApi" class="select-api"></select>
-            </div>
+        <!-- ========== Tab 内容 ========== -->
+        <main class="tab-content">
 
-            <div class="form-actions">
-                <button id="parseBtn" class="btn-parse">
-                    <span class="btn-text">开始解析</span>
-                    <span class="btn-icon">▶</span>
-                </button>
-                <button id="toggleHistoryBtn" class="btn-history" title="查看观看历史">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    <span>历史</span>
-                </button>
-                <button id="toggleStatsBtn" class="btn-stats" title="查看线路统计">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M3 3v18h18"></path>
-                        <path d="M7 12l4-4 4 4 6-6"></path>
-                    </svg>
-                    <span>统计</span>
-                </button>
-            </div>
-
-            <div class="quick-links">
-                <span class="quick-links-title">快速访问：</span>
-                <a href="https://www.iqiyi.com" target="_blank" class="platform-link" title="爱奇艺">
-                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10" fill="#09b83e"/>
-                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="white"/>
-                    </svg>
-                    <span>爱奇艺</span>
-                </a>
-                <a href="https://v.qq.com" target="_blank" class="platform-link" title="腾讯视频">
-                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10" fill="#00a2e8"/>
-                        <path d="M9 10v4l6-2z" fill="white"/>
-                    </svg>
-                    <span>腾讯视频</span>
-                </a>
-                <a href="https://www.youku.com" target="_blank" class="platform-link" title="优酷">
-                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <rect width="24" height="24" rx="12" fill="#ff6700"/>
-                        <path d="M8 10l8 4-8 4z" fill="white"/>
-                    </svg>
-                    <span>优酷</span>
-                </a>
-                <a href="https://www.mgtv.com" target="_blank" class="platform-link" title="芒果TV">
-                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10" fill="#ff9900"/>
-                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="white"/>
-                    </svg>
-                    <span>芒果TV</span>
-                </a>
-                <a href="https://www.sohu.com" target="_blank" class="platform-link" title="搜狐视频">
-                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <circle cx="12" cy="12" r="10" fill="#ff0000"/>
-                        <path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" fill="white"/>
-                    </svg>
-                    <span>搜狐视频</span>
-                </a>
-                <a href="https://www.bilibili.com" target="_blank" class="platform-link" title="B站">
-                    <svg class="platform-icon" viewBox="0 0 24 24" fill="currentColor">
-                        <rect width="24" height="24" rx="12" fill="#fb7299"/>
-                        <rect x="6" y="8" width="12" height="8" rx="2" fill="white"/>
-                        <rect x="9" y="10" width="2" height="4" rx="1" fill="#fb7299"/>
-                        <rect x="13" y="10" width="2" height="4" rx="1" fill="#fb7299"/>
-                    </svg>
-                    <span>Bilibili</span>
-                </a>
-            </div>
-        </div>
-
-        <!-- 视频播放器容器 -->
-        <div id="playerContainer" class="player-container hidden">
-            <!-- 播放器工具栏 -->
-            <div class="player-toolbar">
-                <div class="player-info">
-                    <span id="videoTitle" class="video-title">视频播放</span>
-                    <span id="videoEpisode" class="video-episode"></span>
+            <!-- -------- VIP 长视频解析 -------- -->
+            <section class="tab-panel active" id="panelVip">
+                <div class="banner">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span>粘贴链接后点击解析，即可在线播放VIP视频</span>
                 </div>
-                <div class="player-actions">
-                    <button id="refreshBtn" class="toolbar-btn" title="刷新视频">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10"></polyline>
-                            <polyline points="1 20 1 14 7 14"></polyline>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                        </svg>
-                        <span>刷新</span>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label class="input-label">视频地址</label>
+                            <input type="text" id="vipUrl" class="input-field" placeholder="粘贴视频网址（爱奇艺、腾讯、优酷、芒果TV等）" autocomplete="off">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">解析线路</label>
+                            <select id="vipApi" class="input-field input-select"></select>
+                        </div>
+                        <button id="vipParseBtn" class="btn btn-primary btn-block">
+                            <span>开始解析</span>
+                            <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </button>
+                        <div class="quick-links" id="vipQuickLinks"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- -------- 短视频解析 -------- -->
+            <section class="tab-panel" id="panelShort">
+                <div class="banner">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span>支持抖音、快手、小红书等平台视频去水印解析</span>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label class="input-label">短视频链接</label>
+                            <input type="text" id="shortUrl" class="input-field" placeholder="粘贴抖音/快手/小红书/B站等视频链接" autocomplete="off">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">解析线路</label>
+                            <select id="shortApi" class="input-field input-select"></select>
+                        </div>
+                        <button id="shortParseBtn" class="btn btn-primary btn-block">
+                            <span>解析去水印</span>
+                            <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </button>
+                        <div class="supported-platforms" id="shortPlatforms"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- -------- B站解析 -------- -->
+            <section class="tab-panel" id="panelBili">
+                <div class="banner">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span>输入BV号或AV号即可获取B站视频高清解析</span>
+                </div>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="input-group">
+                            <label class="input-label">BV 号</label>
+                            <input type="text" id="biliBv" class="input-field" placeholder="例如：BV1GJ411x7h7" autocomplete="off">
+                        </div>
+                        <div class="input-group-divider"><span>或</span></div>
+                        <div class="input-group">
+                            <label class="input-label">AV 号</label>
+                            <input type="text" id="biliAv" class="input-field" placeholder="例如：av12345678" autocomplete="off">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">清晰度</label>
+                            <select id="biliQuality" class="input-field input-select"></select>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">输出方式</label>
+                            <div class="btn-group" id="biliOtype">
+                                <button class="btn-group-item active" data-value="json">JSON</button>
+                                <button class="btn-group-item" data-value="url">直链</button>
+                                <button class="btn-group-item" data-value="dplayer">播放器</button>
+                            </div>
+                        </div>
+                        <button id="biliParseBtn" class="btn btn-primary btn-block">
+                            <span>解析B站视频</span>
+                            <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        </button>
+                    </div>
+                    <!-- B站解析结果 -->
+                    <div id="biliResult" class="bili-result hidden">
+                        <div class="bili-result-header">
+                            <span class="bili-result-title">解析结果</span>
+                            <button id="biliResultClose" class="btn-icon-only">✕</button>
+                        </div>
+                        <pre id="biliResultContent" class="bili-result-content"></pre>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ========== 播放器 ========== -->
+        <div id="playerContainer" class="player-overlay hidden">
+            <div class="player-header">
+                <div class="player-header-left">
+                    <span id="playerTitle" class="player-title">视频播放</span>
+                    <span id="playerEpisode" class="player-episode hidden"></span>
+                </div>
+                <div class="player-header-actions">
+                    <button id="playerSwitch" class="player-btn player-switch-btn" title="换线路">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                        <span class="player-switch-label">换线路</span>
                     </button>
-                    <button id="closeBtn" class="toolbar-btn" title="关闭播放器">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="18" y1="6" x2="6" y2="18"></line>
-                            <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                        <span>关闭</span>
+                    <button id="playerRefresh" class="player-btn" title="刷新">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    </button>
+                    <button id="playerClose" class="player-btn" title="关闭">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
             </div>
-
-            <!-- 加载动画 -->
-            <div id="loadingOverlay" class="loading-overlay">
-                <div class="loading-spinner">
-                    <div class="spinner-circle"></div>
-                    <div class="spinner-circle"></div>
-                    <div class="spinner-circle"></div>
+            <div class="player-body">
+                <div id="loadingOverlay" class="loading-overlay">
+                    <div class="spinner"><div></div><div></div><div></div></div>
+                    <p class="loading-text">正在加载视频...</p>
                 </div>
-                <p class="loading-text">正在加载视频...</p>
-            </div>
-            
-            <!-- 视频播放区域 -->
-            <div class="player-wrapper">
-                <iframe 
-                    id="videoPlayer" 
-                    frameborder="0" 
-                    allowfullscreen 
-                    allow="autoplay; fullscreen; picture-in-picture"
-                ></iframe>
+                <div class="player-wrap">
+                    <iframe id="videoPlayer" frameborder="0" allowfullscreen allow="autoplay; fullscreen; picture-in-picture"></iframe>
+                </div>
             </div>
         </div>
 
-        <!-- 观看历史 -->
-        <div id="historyContainer" class="history-container hidden">
-            <div class="history-header">
-                <h3>📺 观看历史</h3>
-                <button id="clearHistoryBtn" class="clear-btn">清空历史</button>
+        <!-- ========== 智能线路检测弹窗（多窗口视频墙） ========== -->
+        <div id="routeTestModal" class="rt-overlay hidden">
+            <div class="rt-panel">
+                <div class="rt-header">
+                    <div class="rt-header-left">
+                        <div class="rt-header-title">🔍 并行检测中</div>
+                        <div class="rt-header-sub" id="rtStatus">正在同时测试所有接口...</div>
+                    </div>
+                    <button id="rtCancelBtn" class="rt-cancel-btn">取消</button>
+                </div>
+                <div class="rt-grid" id="rtGrid"></div>
             </div>
-            <div id="historyList" class="history-list"></div>
         </div>
 
-        <!-- 线路统计 -->
-        <div id="statsContainer" class="stats-container hidden">
-            <div class="stats-header">
-                <h3>📊 线路统计</h3>
-                <button id="clearStatsBtn" class="clear-btn">清空统计</button>
-            </div>
-            <div id="statsList" class="stats-list"></div>
+        <!-- ========== 历史记录 & 统计（底部抽屉） ========== -->
+        <div class="bottom-actions">
+            <button id="toggleHistoryBtn" class="bottom-action-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>历史</span>
+            </button>
+            <button id="toggleStatsBtn" class="bottom-action-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 12l4-4 4 4 6-6"/></svg>
+                <span>统计</span>
+            </button>
         </div>
 
-        <!-- 使用说明 -->
-        <div class="instructions">
-            <h3>📖 使用说明</h3>
-            <div class="instructions-grid">
-                <div class="instruction-item">
-                    <div class="step-number">1</div>
-                    <p>复制想看的视频网址</p>
-                </div>
-                <div class="instruction-item">
-                    <div class="step-number">2</div>
-                    <p>粘贴到上方输入框</p>
-                </div>
-                <div class="instruction-item">
-                    <div class="step-number">3</div>
-                    <p>选择解析线路</p>
-                </div>
-                <div class="instruction-item">
-                    <div class="step-number">4</div>
-                    <p>点击开始解析观看</p>
+        <!-- 历史抽屉 -->
+        <div id="historyDrawer" class="drawer hidden">
+            <div class="drawer-header">
+                <h3>观看历史</h3>
+                <div class="drawer-header-actions">
+                    <button id="clearHistoryBtn" class="btn-text-sm">清空</button>
+                    <button id="closeHistoryBtn" class="btn-icon-only">✕</button>
                 </div>
             </div>
-            
-            <div class="feature-highlights">
-                <h4>🚀 新功能特性</h4>
+            <div class="drawer-body" id="historyList"></div>
+        </div>
+
+        <!-- 统计抽屉 -->
+        <div id="statsDrawer" class="drawer hidden">
+            <div class="drawer-header">
+                <h3>线路统计</h3>
+                <div class="drawer-header-actions">
+                    <button id="clearStatsBtn" class="btn-text-sm">清空</button>
+                    <button id="closeStatsBtn" class="btn-icon-only">✕</button>
+                </div>
+            </div>
+            <div class="drawer-body" id="statsList"></div>
+        </div>
+
+        <!-- ========== 使用说明（折叠） ========== -->
+        <div class="card instructions-card">
+            <button class="collapse-trigger" id="instructionsToggle">
+                <span>使用说明</span>
+                <svg class="collapse-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="collapse-body" id="instructionsBody">
+                <div class="step-grid">
+                    <div class="step"><span class="step-num">1</span><p>复制视频网址</p></div>
+                    <div class="step"><span class="step-num">2</span><p>粘贴到输入框</p></div>
+                    <div class="step"><span class="step-num">3</span><p>选择解析线路</p></div>
+                    <div class="step"><span class="step-num">4</span><p>点击解析并播放</p></div>
+                </div>
                 <ul class="feature-list">
-                    <li><strong>智能路由：</strong>自动并发测试所有线路，选择最快的可用线路</li>
-                    <li><strong>视频信息：</strong>自动提取视频标题、集数等信息</li>
-                    <li><strong>性能统计：</strong>记录各线路成功率和响应时间，优化选择</li>
-                    <li><strong>观看历史：</strong>保存观看记录，支持添加备注</li>
+                    <li><strong>智能路由：</strong>自动检测最快可用线路</li>
+                    <li><strong>短视频去水印：</strong>支持抖音/快手/小红书等</li>
+                    <li><strong>B站高清解析：</strong>支持BV/AV号，多清晰度选择</li>
+                    <li><strong>观看历史：</strong>自动保存，支持备注</li>
                 </ul>
             </div>
         </div>
 
-        <!-- API信息说明 -->
-        <div class="api-info">
-            <h3>🔧 接口数据格式说明</h3>
-            <p>
-                <strong>接口返回格式：</strong>这些视频解析接口返回的是包含视频播放器的HTML页面，而不是JSON数据。
-                页面中嵌入了 <code>&lt;video&gt;</code> 标签或其他播放器组件。
-            </p>
-            <p>
-                <strong>视频时长获取：</strong>由于跨域限制，无法直接从iframe中获取视频时长。
-                系统会尝试从原始视频URL中提取标题、集数等信息，并在可能的情况下显示时长。
-            </p>
-            <p>
-                <strong>智能检测：</strong>系统通过并发测试各线路的响应速度和可用性，
-                自动选择最佳线路，提升观看体验。
-            </p>
-        </div>
-
-        <!-- 页脚 -->
-        <footer class="footer">
-            <p class="footer-text">
-                本站仅供学习交流使用，请勿用于商业用途
-            </p>
-            <p class="footer-copyright">
-                © 2025 视频解析工具
-            </p>
+        <!-- ========== 页脚 ========== -->
+        <footer class="app-footer">
+            <p>本站仅供学习交流，请勿用于商业用途</p>
+            <p class="footer-copy">&copy; 2026 视频解析工具</p>
         </footer>
     </div>
+
+    <!-- 消息容器 -->
+    <div id="messageContainer" class="message-container"></div>
 
     <script src="js/apis.js"></script>
     <script src="js/video-info.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
-
